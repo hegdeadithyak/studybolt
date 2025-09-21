@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CreateNotebookDialog } from "@/components/notebooks/CreateNotebookDialog";
+import { NotebookInterface } from "@/components/notebooks/NotebookInterface";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { 
   BookOpen, 
   Plus, 
@@ -65,6 +67,17 @@ const recentChats = [
 
 export const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeNotebook, setActiveNotebook] = useState<string | null>(null);
+
+  // If a notebook is active, show the notebook interface
+  if (activeNotebook) {
+    return (
+      <NotebookInterface 
+        notebookTitle={activeNotebook}
+        onBack={() => setActiveNotebook(null)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -91,6 +104,8 @@ export const Dashboard = () => {
                   className="pl-10 w-64"
                 />
               </div>
+              
+              <ThemeToggle />
               
               <Button variant="ghost" size="icon">
                 <Settings className="h-5 w-5" />
@@ -173,21 +188,25 @@ export const Dashboard = () => {
 
             <div className="grid gap-6">
               {notebooks.map((notebook) => (
-                <Card key={notebook.id} className="card-shadow hover:card-shadow-hover transition-smooth cursor-pointer">
+                <Card 
+                  key={notebook.id} 
+                  className="card-shadow hover:card-shadow-hover transition-smooth cursor-pointer group"
+                  onClick={() => setActiveNotebook(notebook.title)}
+                >
                   <CardHeader className="pb-4">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className={`w-12 h-12 ${notebook.color} rounded-lg flex items-center justify-center`}>
+                        <div className={`w-12 h-12 ${notebook.color} rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform`}>
                           <BookOpen className="h-6 w-6 text-white" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">{notebook.title}</CardTitle>
+                          <CardTitle className="text-lg group-hover:text-primary transition-colors">{notebook.title}</CardTitle>
                           <CardDescription className="mt-1">
                             {notebook.description}
                           </CardDescription>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
                         <MessageSquare className="h-4 w-4" />
                       </Button>
                     </div>

@@ -181,6 +181,22 @@
     @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
   }
 
+  /* Fade In Animation */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   .transition-fast {
     transition: var(--transition-fast);
   }

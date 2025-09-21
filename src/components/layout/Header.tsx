@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { BookOpen, Zap } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -32,6 +33,7 @@ export const Header = () => {
           </nav>
 
           <div className="flex items-center space-x-3">
+            <ThemeToggle />
             <Button variant="ghost" size="sm" onClick={() => navigate("/auth/signin")}>
               Sign In
             </Button>

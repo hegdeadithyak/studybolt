@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Plus, BookOpen, Palette, Sparkles, Target, Lightbulb, Brain, Code, Calculator, Globe } from "lucide-react";
 
 const colorOptions = [
@@ -14,9 +14,9 @@ const colorOptions = [
   { name: "Royal Purple", value: "bg-purple-500", gradient: "from-purple-500 to-purple-600" },
   { name: "Sunset Orange", value: "bg-orange-500", gradient: "from-orange-500 to-orange-600" },
   { name: "Rose Pink", value: "bg-rose-500", gradient: "from-rose-500 to-rose-600" },
-  { name: "Slate Gray", value: "bg-slate-500", gradient: "from-slate-500 to-slate-600" },
+  { name: "Midnight Black", value: "bg-slate-900", gradient: "from-slate-900 to-slate-800" },
   { name: "Emerald", value: "bg-emerald-500", gradient: "from-emerald-500 to-emerald-600" },
-  { name: "Amber", value: "bg-amber-500", gradient: "from-amber-500 to-amber-600" },
+  { name: "Charcoal", value: "bg-gray-800", gradient: "from-gray-800 to-gray-900" },
 ];
 
 const iconOptions = [
