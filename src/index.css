@@ -29,7 +29,7 @@
     --muted: 210 11% 96%;
     --muted-foreground: 215 10% 50%;
 
-    --accent: 142 76% 36%;
+    --accent: 217 91% 60%;
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 72% 51%;
@@ -43,7 +43,7 @@
 
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(217, 89%, 61%), hsl(217, 89%, 45%));
-    --gradient-accent: linear-gradient(135deg, hsl(142, 76%, 36%), hsl(142, 76%, 28%));
+    --gradient-accent: linear-gradient(135deg, hsl(217, 91%, 60%), hsl(217, 91%, 50%));
     --gradient-surface: linear-gradient(180deg, hsl(0, 0%, 100%), hsl(210, 11%, 98%));
 
     /* Shadows */
@@ -87,7 +87,7 @@
     --muted: 215 25% 15%;
     --muted-foreground: 215 10% 65%;
 
-    --accent: 142 76% 45%;
+    --accent: 217 91% 65%;
     --accent-foreground: 215 28% 9%;
 
     --destructive: 0 72% 60%;
@@ -99,7 +99,7 @@
 
     /* Dark Mode Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(217, 89%, 61%), hsl(217, 89%, 45%));
-    --gradient-accent: linear-gradient(135deg, hsl(142, 76%, 45%), hsl(142, 76%, 35%));
+    --gradient-accent: linear-gradient(135deg, hsl(217, 91%, 65%), hsl(217, 91%, 55%));
     --gradient-surface: linear-gradient(180deg, hsl(215, 28%, 11%), hsl(215, 28%, 9%));
 
     /* Dark Mode Shadows */

@@ -37,8 +37,8 @@ const features = [
     icon: Zap,
     title: "Lightning Fast",
     description: "Get instant responses with our optimized AI infrastructure and streaming technology.",
-    color: "text-yellow-500",
-    bgColor: "bg-yellow-500/10",
+    color: "text-accent",
+    bgColor: "bg-accent/10",
   },
   {
     icon: Brain,
@@ -72,8 +72,8 @@ const features = [
     icon: Users,
     title: "Team Collaboration",
     description: "Share notebooks with teammates, create study groups, and learn together with shared AI insights.",
-    color: "text-orange-500",
-    bgColor: "bg-orange-500/10",
+    color: "text-accent",
+    bgColor: "bg-accent/10",
   },
 ];
 

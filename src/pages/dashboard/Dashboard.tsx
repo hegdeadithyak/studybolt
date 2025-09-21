@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CreateNotebookDialog } from "@/components/notebooks/CreateNotebookDialog";
 import { 
   BookOpen, 
   Plus, 
@@ -12,7 +13,9 @@ import {
   Zap,
   FileText,
   Clock,
-  TrendingUp
+  TrendingUp,
+  Star,
+  MoreHorizontal
 } from "lucide-react";
 
 // Mock data
@@ -147,8 +150,8 @@ export const Dashboard = () => {
                   <p className="text-sm font-medium text-muted-foreground">Study Streak</p>
                   <p className="text-2xl font-bold">12 days</p>
                 </div>
-                <div className="bg-orange-500/10 p-3 rounded-lg">
-                  <TrendingUp className="h-6 w-6 text-orange-500" />
+                <div className="bg-accent/10 p-3 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-accent" />
                 </div>
               </div>
             </CardContent>
@@ -160,10 +163,12 @@ export const Dashboard = () => {
           <div className="lg:col-span-2 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold">Your Notebooks</h2>
-              <Button variant="hero" size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                New Notebook
-              </Button>
+              <CreateNotebookDialog>
+                <Button variant="hero" size="sm" className="shadow-md hover:shadow-lg transition-all">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Notebook
+                </Button>
+              </CreateNotebookDialog>
             </div>
 
             <div className="grid gap-6">

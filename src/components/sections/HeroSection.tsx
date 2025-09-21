@@ -33,13 +33,13 @@ export const HeroSection = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button variant="hero" size="xl" className="group" onClick={() => navigate("/auth/signup")}>
+              <Button variant="hero" size="xl" className="group shadow-lg hover:shadow-xl transition-all" onClick={() => navigate("/auth/signup")}>
                 Start Studying Now
-                <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
               
-              <Button variant="outline" size="xl" onClick={() => navigate("/dashboard")}>
-                <BookOpen className="h-5 w-5" />
+              <Button variant="outline" size="xl" className="shadow-md hover:shadow-lg transition-all" onClick={() => navigate("/dashboard")}>
+                <BookOpen className="h-5 w-5 mr-2" />
                 View Demo
               </Button>
             </div>
@@ -89,14 +89,14 @@ export const HeroSection = () => {
             </div>
             
             {/* Floating elements */}
-            <div className="absolute -top-4 -right-4 bg-white rounded-xl p-4 shadow-large border border-border animate-pulse">
+            <div className="absolute -top-4 -right-4 bg-background/95 backdrop-blur-sm rounded-xl p-4 shadow-large border border-border animate-pulse">
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-accent rounded-full"></div>
                 <span className="text-sm font-medium">AI Explaining...</span>
               </div>
             </div>
             
-            <div className="absolute -bottom-4 -left-4 bg-white rounded-xl p-4 shadow-large border border-border">
+            <div className="absolute -bottom-4 -left-4 bg-background/95 backdrop-blur-sm rounded-xl p-4 shadow-large border border-border">
               <div className="flex items-center space-x-2">
                 <BookOpen className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium">3 notebooks active</span>
