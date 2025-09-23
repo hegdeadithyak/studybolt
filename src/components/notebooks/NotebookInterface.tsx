@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Send, 
   Sparkles, 
@@ -27,23 +28,22 @@ interface Message {
 }
 
 interface NotebookInterfaceProps {
+  notebookId: string;
   notebookTitle: string;
   onBack: () => void;
 }
 
-export const NotebookInterface = ({ notebookTitle, onBack }: NotebookInterfaceProps) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      type: 'assistant',
-      content: `Welcome to your ${notebookTitle} notebook! I'm your AI study assistant. I can help you understand concepts, solve problems, and organize your learning. What would you like to explore today?`,
-      timestamp: new Date(),
-    }
-  ]);
+export const NotebookInterface = ({ notebookId, notebookTitle, onBack }: NotebookInterfaceProps) => {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(true);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchMessages();
+  }, [notebookId]);
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
@@ -51,6 +51,65 @@ export const NotebookInterface = ({ notebookTitle, onBack }: NotebookInterfacePr
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [messages]);
+
+  const fetchMessages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('notebook_id', notebookId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      const formattedMessages = data?.map(msg => ({
+        id: msg.id,
+        type: msg.type as 'user' | 'assistant',
+        content: msg.content,
+        timestamp: new Date(msg.created_at),
+      })) || [];
+
+      // Add welcome message if no messages exist
+      if (formattedMessages.length === 0) {
+        const welcomeMessage: Message = {
+          id: 'welcome',
+          type: 'assistant',
+          content: `Welcome to your ${notebookTitle} notebook! I'm your AI study assistant. I can help you understand concepts, solve problems, and organize your learning. What would you like to explore today?`,
+          timestamp: new Date(),
+        };
+        setMessages([welcomeMessage]);
+      } else {
+        setMessages(formattedMessages);
+      }
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load messages",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const saveMessage = async (message: Omit<Message, 'id' | 'timestamp'>) => {
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .insert([
+          {
+            notebook_id: notebookId,
+            type: message.type,
+            content: message.content,
+          }
+        ]);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error saving message:', error);
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -66,8 +125,14 @@ export const NotebookInterface = ({ notebookTitle, onBack }: NotebookInterfacePr
     setInputValue('');
     setIsLoading(true);
 
+    // Save user message
+    await saveMessage({
+      type: 'user',
+      content: userMessage.content,
+    });
+
     // Simulate AI response
-    setTimeout(() => {
+    setTimeout(async () => {
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
@@ -82,7 +147,15 @@ Here's how I would help:
 What specific aspect would you like me to explain further?`,
         timestamp: new Date(),
       };
+      
       setMessages(prev => [...prev, aiResponse]);
+      
+      // Save AI response
+      await saveMessage({
+        type: 'assistant',
+        content: aiResponse.content,
+      });
+      
       setIsLoading(false);
     }, 1500);
   };
@@ -137,7 +210,12 @@ What specific aspect would you like me to explain further?`,
       <div className="flex-1 flex flex-col">
         <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
           <div className="space-y-6 max-w-4xl mx-auto">
-            {messages.map((message) => (
+            {loadingMessages ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : (
+              messages.map((message) => (
               <div
                 key={message.id}
                 className={`flex items-start space-x-4 animate-fade-in ${
@@ -179,7 +257,7 @@ What specific aspect would you like me to explain further?`,
                   </Card>
                 </div>
               </div>
-            ))}
+            )))}
             
             {isLoading && (
               <div className="flex items-start space-x-4 animate-fade-in">

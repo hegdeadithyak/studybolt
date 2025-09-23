@@ -4,45 +4,38 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, BookOpen, Palette, Sparkles, Target, Lightbulb, Brain, Code, Calculator, Globe } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Plus, BookOpen, Palette, Sparkles, Target, Lightbulb, Brain, Code, Calculator, Globe, Loader2 } from "lucide-react";
 
-const colorOptions = [
-  { name: "Ocean Blue", value: "bg-blue-500", gradient: "from-blue-500 to-blue-600" },
-  { name: "Forest Green", value: "bg-green-500", gradient: "from-green-500 to-green-600" },
-  { name: "Royal Purple", value: "bg-purple-500", gradient: "from-purple-500 to-purple-600" },
-  { name: "Sunset Orange", value: "bg-orange-500", gradient: "from-orange-500 to-orange-600" },
-  { name: "Rose Pink", value: "bg-rose-500", gradient: "from-rose-500 to-rose-600" },
-  { name: "Midnight Black", value: "bg-slate-900", gradient: "from-slate-900 to-slate-800" },
-  { name: "Emerald", value: "bg-emerald-500", gradient: "from-emerald-500 to-emerald-600" },
-  { name: "Charcoal", value: "bg-gray-800", gradient: "from-gray-800 to-gray-900" },
-];
-
-const iconOptions = [
-  { name: "Book", icon: BookOpen },
-  { name: "Brain", icon: Brain },
-  { name: "Code", icon: Code },
-  { name: "Calculator", icon: Calculator },
-  { name: "Globe", icon: Globe },
-  { name: "Lightbulb", icon: Lightbulb },
-  { name: "Target", icon: Target },
-  { name: "Sparkles", icon: Sparkles },
+const subjectOptions = [
+  "Mathematics",
+  "Computer Science", 
+  "Physics",
+  "Chemistry",
+  "Biology",
+  "History",
+  "Literature",
+  "Psychology",
+  "Economics",
+  "Engineering",
+  "Other"
 ];
 
 interface CreateNotebookDialogProps {
   children: React.ReactNode;
+  onNotebookCreated?: (notebook: any) => void;
 }
 
-export const CreateNotebookDialog = ({ children }: CreateNotebookDialogProps) => {
+export const CreateNotebookDialog = ({ children, onNotebookCreated }: CreateNotebookDialogProps) => {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    color: "bg-blue-500",
-    gradient: "from-blue-500 to-blue-600",
-    icon: "BookOpen"
+    subject: ""
   });
   const { toast } = useToast();
 
@@ -50,26 +43,60 @@ export const CreateNotebookDialog = ({ children }: CreateNotebookDialogProps) =>
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
   };
 
-  const handleColorSelect = (color: typeof colorOptions[0]) => {
-    setFormData(prev => ({ 
-      ...prev, 
-      color: color.value,
-      gradient: color.gradient
-    }));
-  };
-
-  const handleIconSelect = (iconName: string) => {
-    setFormData(prev => ({ ...prev, icon: iconName }));
+  const handleSubjectChange = (value: string) => {
+    setFormData(prev => ({ ...prev, subject: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.title.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a notebook title",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.subject) {
+      toast({
+        title: "Error", 
+        description: "Please select a subject",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // TODO: Implement notebook creation with Supabase
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Mock API call
+      const { data: { user } } = await supabase.auth.getUser();
       
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to create a notebook",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('notebooks')
+        .insert([
+          {
+            title: formData.title.trim(),
+            description: formData.description.trim(),
+            subject: formData.subject,
+            user_id: user.id,
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
       toast({
         title: "Success!",
         description: `"${formData.title}" notebook created successfully.`,
@@ -79,12 +106,16 @@ export const CreateNotebookDialog = ({ children }: CreateNotebookDialogProps) =>
       setFormData({
         title: "",
         description: "",
-        color: "bg-blue-500",
-        gradient: "from-blue-500 to-blue-600",
-        icon: "BookOpen"
+        subject: ""
       });
       setOpen(false);
+      
+      // Notify parent component
+      if (onNotebookCreated && data) {
+        onNotebookCreated(data);
+      }
     } catch (error) {
+      console.error('Error creating notebook:', error);
       toast({
         title: "Error",
         description: "Failed to create notebook. Please try again.",
@@ -95,7 +126,7 @@ export const CreateNotebookDialog = ({ children }: CreateNotebookDialogProps) =>
     }
   };
 
-  const SelectedIcon = iconOptions.find(opt => opt.name === formData.icon)?.icon || BookOpen;
+  const SelectedIcon = BookOpen;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -105,13 +136,13 @@ export const CreateNotebookDialog = ({ children }: CreateNotebookDialogProps) =>
       <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden">
         <div className="relative">
           {/* Header with gradient background */}
-          <div className={`bg-gradient-to-r ${formData.gradient} p-6 text-white relative overflow-hidden`}>
+          <div className="bg-gradient-to-r from-primary to-primary/80 p-6 text-white relative overflow-hidden">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="relative">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-bold flex items-center gap-3">
                   <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                    <SelectedIcon className="h-6 w-6" />
+                    <BookOpen className="h-6 w-6" />
                   </div>
                   Create New Notebook
                 </DialogTitle>
@@ -154,6 +185,24 @@ export const CreateNotebookDialog = ({ children }: CreateNotebookDialogProps) =>
                     className="resize-none"
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Subject *
+                  </Label>
+                  <Select value={formData.subject} onValueChange={handleSubjectChange}>
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Select a subject" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subjectOptions.map((subject) => (
+                        <SelectItem key={subject} value={subject}>
+                          {subject}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Preview Card */}
@@ -162,8 +211,8 @@ export const CreateNotebookDialog = ({ children }: CreateNotebookDialogProps) =>
                 <Card className="card-shadow border-2 border-dashed border-border/50">
                   <CardContent className="p-4">
                     <div className="flex items-start space-x-3">
-                      <div className={`w-12 h-12 ${formData.color} rounded-lg flex items-center justify-center shadow-lg`}>
-                        <SelectedIcon className="h-6 w-6 text-white" />
+                      <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
+                        <BookOpen className="h-6 w-6 text-white" />
                       </div>
                       <div className="flex-1">
                         <h3 className="font-semibold text-lg">
@@ -173,7 +222,7 @@ export const CreateNotebookDialog = ({ children }: CreateNotebookDialogProps) =>
                           {formData.description || "Your notebook description will appear here..."}
                         </p>
                         <div className="flex items-center space-x-2 mt-2 text-xs text-muted-foreground">
-                          <span>0 notes</span>
+                          <span>{formData.subject || "Subject"}</span>
                           <span>•</span>
                           <span>Just created</span>
                         </div>
@@ -181,68 +230,6 @@ export const CreateNotebookDialog = ({ children }: CreateNotebookDialogProps) =>
                     </div>
                   </CardContent>
                 </Card>
-              </div>
-
-              {/* Icon Selection */}
-              <div className="space-y-3">
-                <Label className="text-sm font-medium flex items-center gap-2">
-                  <Palette className="h-4 w-4" />
-                  Choose an Icon
-                </Label>
-                <div className="grid grid-cols-4 gap-3">
-                  {iconOptions.map((option) => {
-                    const IconComponent = option.icon;
-                    const isSelected = formData.icon === option.name;
-                    return (
-                      <button
-                        key={option.name}
-                        type="button"
-                        onClick={() => handleIconSelect(option.name)}
-                        className={`p-3 rounded-lg border-2 transition-all ${
-                          isSelected
-                            ? "border-primary bg-primary/5 shadow-md"
-                            : "border-border hover:border-primary/50 hover:bg-muted/50"
-                        }`}
-                      >
-                        <IconComponent className={`h-5 w-5 mx-auto ${
-                          isSelected ? "text-primary" : "text-muted-foreground"
-                        }`} />
-                        <span className={`text-xs mt-1 block ${
-                          isSelected ? "text-primary font-medium" : "text-muted-foreground"
-                        }`}>
-                          {option.name}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Color Selection */}
-              <div className="space-y-3">
-                <Label className="text-sm font-medium flex items-center gap-2">
-                  <Palette className="h-4 w-4" />
-                  Choose a Color
-                </Label>
-                <div className="grid grid-cols-4 gap-3">
-                  {colorOptions.map((color) => (
-                    <button
-                      key={color.name}
-                      type="button"
-                      onClick={() => handleColorSelect(color)}
-                      className={`relative p-1 rounded-lg border-2 transition-all ${
-                        formData.color === color.value
-                          ? "border-primary shadow-md scale-105"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                    >
-                      <div className={`w-full h-12 ${color.value} rounded-md shadow-sm`}></div>
-                      <span className="text-xs mt-1 block text-center text-muted-foreground">
-                        {color.name}
-                      </span>
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* Action Buttons */}
@@ -257,12 +244,12 @@ export const CreateNotebookDialog = ({ children }: CreateNotebookDialogProps) =>
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={!formData.title.trim() || isLoading}
+                  disabled={!formData.title.trim() || !formData.subject || isLoading}
                   className="min-w-[120px]"
                 >
                   {isLoading ? (
                     <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Creating...
                     </div>
                   ) : (

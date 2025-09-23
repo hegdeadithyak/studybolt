@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CreateNotebookDialog } from "@/components/notebooks/CreateNotebookDialog";
 import { NotebookInterface } from "@/components/notebooks/NotebookInterface";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { 
   BookOpen, 
   Plus, 
@@ -17,63 +19,62 @@ import {
   Clock,
   TrendingUp,
   Star,
-  MoreHorizontal
+  MoreHorizontal,
+  Loader2
 } from "lucide-react";
 
-// Mock data
-const notebooks = [
-  {
-    id: 1,
-    title: "Computer Science 101",
-    description: "Introduction to algorithms and data structures",
-    noteCount: 24,
-    lastUpdated: "2 hours ago",
-    color: "bg-blue-500",
-  },
-  {
-    id: 2,
-    title: "Mathematics",
-    description: "Calculus and linear algebra notes",
-    noteCount: 18,
-    lastUpdated: "1 day ago",
-    color: "bg-green-500",
-  },
-  {
-    id: 3,
-    title: "Physics",
-    description: "Quantum mechanics and thermodynamics",
-    noteCount: 31,
-    lastUpdated: "3 days ago",
-    color: "bg-purple-500",
-  },
-];
-
-const recentChats = [
-  {
-    id: 1,
-    title: "Binary Search Trees",
-    notebook: "Computer Science 101",
-    lastMessage: "Can you explain the insertion process?",
-    timestamp: "1 hour ago",
-  },
-  {
-    id: 2,
-    title: "Integration by Parts",
-    notebook: "Mathematics",
-    lastMessage: "Show me step-by-step solution",
-    timestamp: "2 hours ago",
-  },
-];
+interface Notebook {
+  id: string;
+  title: string;
+  description: string;
+  subject: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeNotebook, setActiveNotebook] = useState<string | null>(null);
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchNotebooks();
+  }, []);
+
+  const fetchNotebooks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('notebooks')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      setNotebooks(data || []);
+    } catch (error) {
+      console.error('Error fetching notebooks:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch notebooks",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNotebookCreated = (notebook: Notebook) => {
+    setNotebooks(prev => [notebook, ...prev]);
+  };
 
   // If a notebook is active, show the notebook interface
   if (activeNotebook) {
+    const notebook = notebooks.find(n => n.id === activeNotebook);
     return (
       <NotebookInterface 
-        notebookTitle={activeNotebook}
+        notebookId={activeNotebook}
+        notebookTitle={notebook?.title || "Notebook"}
         onBack={() => setActiveNotebook(null)}
       />
     );
@@ -135,7 +136,7 @@ export const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Notebooks</p>
-                  <p className="text-2xl font-bold">3</p>
+                  <p className="text-2xl font-bold">{notebooks.length}</p>
                 </div>
                 <div className="bg-primary/10 p-3 rounded-lg">
                   <BookOpen className="h-6 w-6 text-primary" />
@@ -148,8 +149,8 @@ export const Dashboard = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Notes</p>
-                  <p className="text-2xl font-bold">73</p>
+                  <p className="text-sm font-medium text-muted-foreground">Active Sessions</p>
+                  <p className="text-2xl font-bold">0</p>
                 </div>
                 <div className="bg-accent/10 p-3 rounded-lg">
                   <FileText className="h-6 w-6 text-accent" />
@@ -163,7 +164,7 @@ export const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Study Streak</p>
-                  <p className="text-2xl font-bold">12 days</p>
+                  <p className="text-2xl font-bold">0 days</p>
                 </div>
                 <div className="bg-accent/10 p-3 rounded-lg">
                   <TrendingUp className="h-6 w-6 text-accent" />
@@ -178,7 +179,7 @@ export const Dashboard = () => {
           <div className="lg:col-span-2 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold">Your Notebooks</h2>
-              <CreateNotebookDialog>
+              <CreateNotebookDialog onNotebookCreated={handleNotebookCreated}>
                 <Button variant="hero" size="sm" className="shadow-md hover:shadow-lg transition-all">
                   <Plus className="h-4 w-4 mr-2" />
                   New Notebook
@@ -186,71 +187,70 @@ export const Dashboard = () => {
               </CreateNotebookDialog>
             </div>
 
-            <div className="grid gap-6">
-              {notebooks.map((notebook) => (
-                <Card 
-                  key={notebook.id} 
-                  className="card-shadow hover:card-shadow-hover transition-smooth cursor-pointer group"
-                  onClick={() => setActiveNotebook(notebook.title)}
-                >
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-12 h-12 ${notebook.color} rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform`}>
-                          <BookOpen className="h-6 w-6 text-white" />
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : notebooks.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="bg-muted/50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                  <BookOpen className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-medium mb-2">No notebooks yet</h3>
+                <p className="text-muted-foreground mb-6">Create your first notebook to get started</p>
+                <CreateNotebookDialog onNotebookCreated={handleNotebookCreated}>
+                  <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Notebook
+                  </Button>
+                </CreateNotebookDialog>
+              </div>
+            ) : (
+              <div className="grid gap-6">
+                {notebooks.map((notebook) => (
+                  <Card 
+                    key={notebook.id} 
+                    className="card-shadow hover:card-shadow-hover transition-smooth cursor-pointer group"
+                    onClick={() => setActiveNotebook(notebook.id)}
+                  >
+                    <CardHeader className="pb-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform shadow-lg">
+                            <BookOpen className="h-6 w-6 text-white" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-lg group-hover:text-primary transition-colors">{notebook.title}</CardTitle>
+                            <CardDescription className="mt-1">
+                              {notebook.description}
+                            </CardDescription>
+                          </div>
                         </div>
-                        <div>
-                          <CardTitle className="text-lg group-hover:text-primary transition-colors">{notebook.title}</CardTitle>
-                          <CardDescription className="mt-1">
-                            {notebook.description}
-                          </CardDescription>
+                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <div className="flex items-center space-x-4">
+                          <span>{notebook.subject}</span>
+                          <span>•</span>
+                          <span>Updated {new Date(notebook.updated_at).toLocaleDateString()}</span>
                         </div>
+                        <Clock className="h-4 w-4" />
                       </div>
-                      <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <MessageSquare className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <div className="flex items-center space-x-4">
-                        <span>{notebook.noteCount} notes</span>
-                        <span>•</span>
-                        <span>Updated {notebook.lastUpdated}</span>
-                      </div>
-                      <Clock className="h-4 w-4" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Recent Chats Sidebar */}
+          {/* Recent Activity Sidebar */}
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Recent Chats</h2>
-              <Button variant="outline" size="sm">
-                View All
-              </Button>
-            </div>
-
-            <div className="space-y-3">
-              {recentChats.map((chat) => (
-                <Card key={chat.id} className="card-shadow hover:card-shadow-hover transition-smooth cursor-pointer">
-                  <CardContent className="p-4">
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between">
-                        <h3 className="font-medium text-sm line-clamp-1">{chat.title}</h3>
-                        <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-2" />
-                      </div>
-                      <p className="text-xs text-muted-foreground">{chat.notebook}</p>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{chat.lastMessage}</p>
-                      <p className="text-xs text-muted-foreground">{chat.timestamp}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              <h2 className="text-xl font-semibold">Quick Actions</h2>
             </div>
 
             <Card className="card-shadow bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
@@ -258,13 +258,15 @@ export const Dashboard = () => {
                 <div className="bg-primary/10 p-3 rounded-lg w-12 h-12 mx-auto mb-4">
                   <Zap className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="font-semibold mb-2">AI Study Tips</h3>
+                <h3 className="font-semibold mb-2">AI Study Assistant</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Get personalized study recommendations based on your learning patterns.
+                  Create your first notebook and start learning with AI-powered assistance.
                 </p>
-                <Button variant="premium" size="sm">
-                  Get Insights
-                </Button>
+                <CreateNotebookDialog onNotebookCreated={handleNotebookCreated}>
+                  <Button variant="premium" size="sm">
+                    Get Started
+                  </Button>
+                </CreateNotebookDialog>
               </CardContent>
             </Card>
           </div>
