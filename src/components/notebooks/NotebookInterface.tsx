@@ -1,13 +1,23 @@
 "use client"
 
-import type React from "react"
-import { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
+
+// Component imports
+import FocusModeOverlay from "./FocusModeOverlay"
+import GamifiedOverlay from "./GamifiedOverlay"
+import ActionMenu from "./ActionMenu"
+import HeaderBar from "./HeaderBar"
+import MessageList from "./MessageList"
+import InputForm from "./InputForm"
+import DifficultyPopover from "./DifficultyPopover"
+import FsPromptDialog from "./FsPromptDialog"
 import {
   ArrowUpIcon,
   BookOpen,
@@ -32,8 +42,9 @@ import {
   Pause,
   Sliders,
   X,
+  Search,
+  Globe,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 
 interface Message {
   id: string
@@ -117,6 +128,7 @@ export const NotebookInterface: React.FC<NotebookInterfaceProps> = ({ notebookId
   const [showFsPrompt, setShowFsPrompt] = useState(false)
   const [difficulty, setDifficulty] = useState<number>(5)
   const [showDifficulty, setShowDifficulty] = useState(false)
+  const [enableWebSearch, setEnableWebSearch] = useState(false)
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
   const { toast } = useToast()
 
@@ -289,21 +301,105 @@ export const NotebookInterface: React.FC<NotebookInterfaceProps> = ({ notebookId
     setInput("")
     setIsLoading(true)
 
-    await saveMessage({ type: "user", content: userMessage.content})
+    await saveMessage({ type: "user", content: userMessage.content })
 
-    // simulated AI response (replace with real AI call)
-    setTimeout(async () => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        type: "assistant",
-        content: `I understand you're asking about "${userMessage.content}". This is a simulated response to demonstrate the interface. In the full version, this would connect to your AI backend with sophisticated reasoning capabilities.\n\nHere's how I would help:\n• Break down complex concepts into digestible parts\n• Provide step-by-step explanations \n• Reference your existing notes for context\n• Suggest related topics to explore\n\nWhat specific aspect would you like me to explain further?`,
-        timestamp: new Date(),
+    try {
+      // Use localhost:3000 for development - adjust for production
+      const API_BASE = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3000/api'
+      
+      const response = await fetch(`${API_BASE}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: [...messages, userMessage].map((msg) => ({ 
+            role: msg.type === 'user' ? 'user' : 'assistant', 
+            content: msg.content 
+          })),
+          enableSearch: enableWebSearch,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
 
-      setMessages((prev) => [...prev, aiResponse])
-      await saveMessage({ type: "assistant", content: aiResponse.content })
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder("utf-8")
+      let assistantResponseContent = ""
+
+      // Create a placeholder assistant message for streaming
+      const streamingMessageId = "streaming-ai-response"
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: streamingMessageId,
+          type: "assistant",
+          content: "",
+          timestamp: new Date(),
+        },
+      ])
+
+      while (true) {
+        const { done, value } = await reader!.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split("\n").filter((line) => line.startsWith("data: "))
+        
+        for (const line of lines) {
+          const data = line.substring(5)
+          if (data === "[DONE]") {
+            break
+          }
+          try {
+            const json = JSON.parse(data)
+            if (json.content) {
+              assistantResponseContent += json.content
+              setMessages((prev) => 
+                prev.map((msg) =>
+                  msg.id === streamingMessageId 
+                    ? { ...msg, content: assistantResponseContent }
+                    : msg
+                )
+              )
+            } else if (json.error) {
+              throw new Error(json.error)
+            }
+          } catch (parseError) {
+            console.error("Error parsing SSE data:", parseError, "Data:", data)
+          }
+        }
+      }
+
+      // Save the final assistant message
+      if (assistantResponseContent) {
+        await saveMessage({ type: "assistant", content: assistantResponseContent })
+        // Update the message with a proper ID
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === streamingMessageId
+              ? { ...msg, id: (Date.now() + 1).toString() }
+              : msg
+          )
+        )
+      }
+    } catch (err) {
+      console.error("Error fetching AI response:", err)
+      toast({ title: "Error", description: "Failed to get AI response", variant: "destructive" })
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          type: "assistant",
+          content: "Sorry, I encountered an error and couldn't generate a response.",
+          timestamp: new Date(),
+        },
+      ])
+    } finally {
       setIsLoading(false)
-    }, 1500)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -403,7 +499,6 @@ export const NotebookInterface: React.FC<NotebookInterfaceProps> = ({ notebookId
               )
             })}
           </div>
-          
         </div>
       ))}
 
@@ -434,11 +529,13 @@ export const NotebookInterface: React.FC<NotebookInterfaceProps> = ({ notebookId
   return (
     <TooltipProvider>
       <div
-        className={`relative flex min-h-[100dvh] w-screen transition-all duration-500 ${
+        className={cn(
+          "relative flex min-h-[100dvh] w-screen transition-all duration-500",
           focusMode
             ? "bg-slate-950 dark:from-[#0a0a0a] dark:via-slate-900/40 dark:to-[#0a0a0a]"
-            : "bg-white dark:bg-[#0f0f0f]"
-        } ${activeOverlay || showActionMenu ? "scale-[0.995]" : ""}`}
+            : "bg-white dark:bg-[#0f0f0f]",
+          activeOverlay || showActionMenu ? "scale-[0.995]" : ""
+        )}
       >
         {/* Focus Mode Overlay */}
         {focusMode && (
@@ -516,6 +613,34 @@ export const NotebookInterface: React.FC<NotebookInterfaceProps> = ({ notebookId
                   ) : (
                     header
                   )}
+                  <div className="p-6 pt-0">
+                    <form
+                      onSubmit={(e) => handleSubmit(e)}
+                      className="relative flex items-center rounded-3xl border px-5 py-4 pr-14 text-sm transition-all duration-200 shadow-lg hover:shadow-xl bg-white/10 border-white/20 focus-within:ring-4 focus-within:ring-blue-500/10 dark:focus-within:ring-white/10 focus-within:before:opacity-100 before:transition-opacity"
+                    >
+                      <AutoResizeTextarea
+                        value={input}
+                        onChange={setInput}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Ask me anything about your studies..."
+                        className="flex-1 bg-transparent focus:outline-none min-h-[24px] max-h-32 text-white placeholder:text-white/70 text-base leading-relaxed"
+                        disabled={isLoading}
+                      />
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="submit"
+                            size="sm"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full p-0 bg-white/20 hover:bg-white/30 text-white shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+                            disabled={!input.trim() || isLoading}
+                          >
+                            <ArrowUpIcon className="h-6 w-6" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent sideOffset={12}>Send message</TooltipContent>
+                      </Tooltip>
+                    </form>
+                  </div>
                 </div>
               </div>
 
@@ -566,7 +691,7 @@ export const NotebookInterface: React.FC<NotebookInterfaceProps> = ({ notebookId
                       setActiveOverlay(null)
                     }}
                   >
-                    Let’s go
+                    Let's go
                   </Button>
                   <Button variant="outline" onClick={() => setActiveOverlay(null)}>
                     Cancel
@@ -745,6 +870,29 @@ export const NotebookInterface: React.FC<NotebookInterfaceProps> = ({ notebookId
                 </div>
 
                 <div className="flex items-center gap-1">
+                  {/* Web Search Toggle */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={enableWebSearch ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setEnableWebSearch(!enableWebSearch)}
+                        className={cn(
+                          "h-8 px-3 text-xs font-medium transition-all duration-200",
+                          enableWebSearch 
+                            ? "bg-green-600 hover:bg-green-700 text-white shadow-sm" 
+                            : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#1a1a1a]"
+                        )}
+                      >
+                        <Globe className="h-4 w-4 mr-2" />
+                        Web Search
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {enableWebSearch ? "Web search enabled - AI can search the internet" : "Enable web search for current information"}
+                    </TooltipContent>
+                  </Tooltip>
+
                   {/* Difficulty control */}
                   <div className="relative">
                     <Button
@@ -795,7 +943,7 @@ export const NotebookInterface: React.FC<NotebookInterfaceProps> = ({ notebookId
                             <input
                               type="range"
                               min={1}
-                              max={100}
+                              max={10}
                               step={1}
                               value={difficulty}
                               onChange={(e) => setDifficulty(Number(e.target.value))}
@@ -890,7 +1038,7 @@ export const NotebookInterface: React.FC<NotebookInterfaceProps> = ({ notebookId
                       value={input}
                       onChange={setInput}
                       onKeyDown={handleKeyDown}
-                      placeholder="Ask me anything about your studies..."
+                      placeholder={enableWebSearch ? "Ask me anything - I can search the web for current information..." : "Ask me anything about your studies..."}
                       className="flex-1 bg-transparent focus:outline-none min-h-[24px] max-h-32 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 text-base leading-relaxed"
                       disabled={isLoading}
                     />
@@ -911,9 +1059,17 @@ export const NotebookInterface: React.FC<NotebookInterfaceProps> = ({ notebookId
 
                   {/* Footer Info */}
                   <div className="flex items-center justify-center pt-4 text-xs text-gray-500 dark:text-gray-400">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="h-3 w-3" />
-                      <span>{Math.max(0, messages.length - 1)} messages</span>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="h-3 w-3" />
+                        <span>{Math.max(0, messages.length - 1)} messages</span>
+                      </div>
+                      {enableWebSearch && (
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-3 w-3 text-green-500" />
+                          <span>Web search enabled</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
